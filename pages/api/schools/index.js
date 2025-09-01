@@ -5,8 +5,13 @@ import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import cloudinary from "../../../lib/cloudinary";
 
-// Disable Next.js default body parser
-export const config = { api: { bodyParser: false } };
+// Configure Next.js API route
+export const config = {
+  api: {
+    // Enable body parsing for all requests except POST and PUT (which use formidable)
+    bodyParser: req => req.method !== 'POST' && req.method !== 'PUT',
+  }
+};
 
 // Upload file to Cloudinary with enhanced error handling
 async function uploadToCloudinary(file) {
@@ -150,11 +155,17 @@ export default async function handler(req, res) {
   // ================= DELETE =================
   else if (req.method === "DELETE") {
     try {
-      const { id } = req.query;
-      if (!id)
+      // Get ID from request body or query parameters
+      const id = req.body?.id || req.query.id;
+      
+      console.log('DELETE request received with ID:', id, 'Type:', typeof id, 'Body:', JSON.stringify(req.body));
+      
+      if (!id) {
+        console.log('No ID provided in DELETE request');
         return res
           .status(400)
           .json({ success: false, message: "School ID is required" });
+      }
 
       const [school] = await pool.query(
         "SELECT image FROM schools WHERE id = ?",
@@ -170,9 +181,11 @@ export default async function handler(req, res) {
         await cloudinary.uploader.destroy(publicId);
       }
 
+      console.log('Attempting to delete school with ID:', id);
       const [result] = await pool.execute("DELETE FROM schools WHERE id = ?", [
         id,
       ]);
+      console.log('Delete result:', result);
 
       if (result.affectedRows > 0) {
         return res

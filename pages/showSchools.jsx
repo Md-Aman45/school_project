@@ -62,12 +62,24 @@ export default function ShowSchools() {
     if (!id) return;
     
     setIsDeleting(true);
+    console.log('Deleting school with ID:', id, 'Type:', typeof id);
+    
     try {
-      const response = await fetch(`/api/schools?id=${id}`, {
+      // Use a more reliable approach by sending the ID in the request body
+      const requestBody = JSON.stringify({ id });
+      console.log('Delete request body:', requestBody);
+      
+      const response = await fetch(`/api/schools`, {
         method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: requestBody
       });
       
+      console.log('Delete response status:', response.status);
       const data = await response.json();
+      console.log('Delete response data:', data);
       
       if (data.success) {
         // Remove the deleted school from the state
