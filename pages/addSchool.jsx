@@ -6,26 +6,66 @@ export default function AddSchool() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [preview, setPreview] = useState(null);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const onSubmit = async (data) => {
-    const formData = new FormData();
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+      const formData = new FormData();
 
-    // Append all fields
-    Object.keys(data).forEach((key) => {
-      if (key === "image") {
-        if (data.image[0]) formData.append("image", data.image[0]);
+      // Append all fields
+      Object.keys(data).forEach((key) => {
+        if (key === "image") {
+          if (data.image[0]) formData.append("image", data.image[0]);
+        } else {
+          formData.append(key, data[key]);
+        }
+      });
+
+      // Use window.location.origin to get the base URL in any environment
+      const baseUrl = window.location.origin;
+      console.log(`Submitting form to: ${baseUrl}/api/schools`);
+      
+      const res = await fetch(`${baseUrl}/api/schools`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await res.json();
+      console.log('API response:', result);
+      
+      if (res.ok) {
+        // If the API call was successful, update localStorage
+        if (typeof window !== 'undefined' && result.data) {
+          try {
+            // Get existing data from localStorage
+            const existingData = localStorage.getItem('schoolsData');
+            const schools = existingData ? JSON.parse(existingData) : [];
+            
+            // Add the new school to the array
+            schools.push(result.data);
+            
+            // Save back to localStorage
+            localStorage.setItem('schoolsData', JSON.stringify(schools));
+            console.log('School added to localStorage');
+          } catch (error) {
+            console.error('Error updating localStorage:', error);
+          }
+        }
+        
+        Router.push("/showSchools");
       } else {
-        formData.append(key, data[key]);
+        setErrorMessage(result.message || "Failed to add school. Please try again.");
+        console.error('Error adding school:', result);
       }
-    });
-
-    const res = await fetch("/api/schools", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await res.json();
-    if (res.ok) Router.push("/showSchools");
-    else alert(result.message || "Something went wrong");
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setErrorMessage("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -127,11 +167,18 @@ export default function AddSchool() {
           </div>
         )}
 
+        {errorMessage && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{errorMessage}</span>
+          </div>
+        )}
+
         <button
           type="submit"
           className="btn btn-primary mt-4 justify-self-center w-full sm:w-auto"
+          disabled={isSubmitting}
         >
-          Add School
+          {isSubmitting ? "Adding School..." : "Add School"}
         </button>
       </form>
     </div>

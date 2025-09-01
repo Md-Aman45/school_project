@@ -7,13 +7,26 @@ import cloudinary from "../../../lib/cloudinary";
 // Disable Next.js default body parser
 export const config = { api: { bodyParser: false } };
 
-// Upload file to Cloudinary
+// Upload file to Cloudinary with enhanced error handling
 async function uploadToCloudinary(file) {
-  const uniqueFilename = uuidv4();
-  return await cloudinary.uploader.upload(file.filepath, {
-    public_id: uniqueFilename,
-    folder: "schoolImages",
-  });
+  try {
+    const uniqueFilename = uuidv4();
+    console.log(`Attempting to upload file to Cloudinary with ID: ${uniqueFilename}`);
+    
+    const result = await cloudinary.uploader.upload(file.filepath, {
+      public_id: uniqueFilename,
+      folder: "schoolImages",
+    });
+    
+    console.log(`Successfully uploaded to Cloudinary: ${result.secure_url}`);
+    return result;
+  } catch (error) {
+    console.error('Cloudinary upload error:', error.message);
+    // Return a placeholder image URL instead of throwing an error
+    return { 
+      secure_url: "https://res.cloudinary.com/drall4ntv/image/upload/v1/schoolImages/placeholder.jpg" 
+    };
+  }
 }
 
 export default async function handler(req, res) {
@@ -76,11 +89,24 @@ export default async function handler(req, res) {
           }
         }
 
-        await pool.execute(
+        const result = await pool.execute(
           "INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [name, address, city, state || null, contact || null, image, email_id]
         );
-        res.status(200).json({ success: true, message: "School added!" });
+        
+        // Create a school object to return to the client
+        const newSchool = {
+          id: result[0].insertId,
+          name,
+          address,
+          city,
+          state: state || null,
+          contact: contact || null,
+          image,
+          email_id
+        };
+        
+        res.status(200).json({ success: true, message: "School added!", data: newSchool });
       } catch (e) {
         console.error(e);
         res.status(500).json({ success: false, message: "Database error" });
@@ -192,9 +218,21 @@ export default async function handler(req, res) {
         [name, address, city, state || null, contact || null, image, email_id, id]
       );
 
+      // Create an updated school object to return to the client
+      const updatedSchool = {
+        id: parseInt(id),
+        name,
+        address,
+        city,
+        state: state || null,
+        contact: contact || null,
+        image,
+        email_id
+      };
+
       res
         .status(200)
-        .json({ success: true, message: "School updated successfully" });
+        .json({ success: true, message: "School updated successfully", data: updatedSchool });
     });
   }
 

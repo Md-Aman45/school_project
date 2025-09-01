@@ -14,11 +14,31 @@ export default function ShowSchools() {
 
   useEffect(() => {
     setIsLoading(true);
+    
+    // Try to load from localStorage first
+    if (typeof window !== 'undefined') {
+      const savedData = localStorage.getItem('schoolsData');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          console.log("Loaded schools from localStorage:", parsedData);
+          setSchools(parsedData);
+          setFilteredSchools(parsedData);
+          setIsLoading(false);
+          return; // Skip API call if we have data in localStorage
+        } catch (error) {
+          console.error("Error parsing localStorage data:", error);
+          // Continue to API call if localStorage parsing fails
+        }
+      }
+    }
+    
+    // Fallback to API call if localStorage is empty or unavailable
     fetch("/api/schools")
       .then((res) => res.json())
       .then((data) => {
         const schoolsData = data.data || [];
-        console.log("Fetched schools:", schoolsData); // Debug log
+        console.log("Fetched schools from API:", schoolsData);
         setSchools(schoolsData);
         setFilteredSchools(schoolsData);
         setIsLoading(false);
@@ -58,6 +78,17 @@ export default function ShowSchools() {
           school.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           school.state?.toLowerCase().includes(searchTerm.toLowerCase())
         ));
+        
+        // Also update localStorage
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('schoolsData', JSON.stringify(updatedSchools));
+            console.log('Updated localStorage after deletion');
+          } catch (error) {
+            console.error('Error updating localStorage after deletion:', error);
+          }
+        }
+        
         // Close the modal
         closeDeleteModal();
       } else {
@@ -150,6 +181,10 @@ export default function ShowSchools() {
                     src={s.image}
                     alt={s.name}
                     className="w-full h-48 object-cover transition-transform duration-500 hover:scale-105"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://res.cloudinary.com/drall4ntv/image/upload/v1/schoolImages/placeholder.jpg";
+                    }}
                   />
                 ) : (
                   <div className="w-full h-48 bg-gray-200 flex items-center justify-center">

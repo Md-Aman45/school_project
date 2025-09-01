@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/schoolImages/(.*)",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" },
+      "dest": "/schoolImages/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "CLOUD_NAME": "drall4ntv",
+    "CLOUD_API_KEY": "919696223163162",
+    "CLOUD_API_SECRET": "ciN9ETYXD7OlUYBJtBGR206aRqs"
+  }
+}

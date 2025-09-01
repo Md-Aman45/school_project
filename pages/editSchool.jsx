@@ -73,6 +73,31 @@ export default function EditSchool() {
 
       const result = await res.json();
       if (res.ok) {
+        // Update localStorage with the edited school
+        if (typeof window !== 'undefined' && result.data) {
+          try {
+            // Get existing data from localStorage
+            const savedData = localStorage.getItem('schoolsData');
+            if (savedData) {
+              const schools = JSON.parse(savedData);
+              
+              // Find and update the school in the array
+              const updatedSchools = schools.map(school => {
+                if (school.id === parseInt(id)) {
+                  return result.data; // Replace with updated school data
+                }
+                return school;
+              });
+              
+              // Save back to localStorage
+              localStorage.setItem('schoolsData', JSON.stringify(updatedSchools));
+              console.log('School updated in localStorage');
+            }
+          } catch (error) {
+            console.error('Error updating localStorage:', error);
+          }
+        }
+        
         setNotification({ show: true, message: "School updated successfully!", type: "success" });
         // Delay redirect to show success message
         setTimeout(() => {
