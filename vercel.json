@@ -29,6 +29,11 @@
   "env": {
     "CLOUD_NAME": "drall4ntv",
     "CLOUD_API_KEY": "919696223163162",
-    "CLOUD_API_SECRET": "ciN9ETYXD7OlUYBJtBGR206aRqs"
+    "CLOUD_API_SECRET": "ciN9ETYXD7OlUYBJtBGR206aRqs",
+    "DB_HOST": "schools-project.c5yyiaoaa696.ap-south-1.rds.amazonaws.com",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "Schools_123_project",
+    "DB_NAME": "schools-project",
+    "DB_PORT": "3306"
   }
 }
