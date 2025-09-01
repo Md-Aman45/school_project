@@ -2,7 +2,7 @@ import { getPool } from "../../../lib/db";
 import formidable from "formidable";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
-import { cloudinary } from "../../../lib/cloudinary";
+import cloudinary from "../../../lib/cloudinary";
 
 // Disable Next.js default body parser
 export const config = { api: { bodyParser: false } };
@@ -53,16 +53,29 @@ export default async function handler(req, res) {
           .status(400)
           .json({ success: false, message: "Error parsing form" });
 
-      const { name, address, city, state, contact, email_id } = fields;
-
-      let image = null;
-      if (files.image) {
-        const file = Array.isArray(files.image) ? files.image[0] : files.image;
-        const result = await uploadToCloudinary(file);
-        image = result.secure_url; // Cloudinary hosted image URL
-      }
-
       try {
+        // Extract fields, handling both string values and arrays (from formidable)
+        const name = fields.name instanceof Array ? fields.name[0] : fields.name;
+        const address = fields.address instanceof Array ? fields.address[0] : fields.address;
+        const city = fields.city instanceof Array ? fields.city[0] : fields.city;
+        const state = fields.state instanceof Array ? fields.state[0] : fields.state;
+        const contact = fields.contact instanceof Array ? fields.contact[0] : fields.contact;
+        const email_id = fields.email_id instanceof Array ? fields.email_id[0] : fields.email_id;
+
+        let image = null;
+        if (files.image) {
+          const file = Array.isArray(files.image) ? files.image[0] : files.image;
+          try {
+            const result = await uploadToCloudinary(file);
+            // Remove any backticks or special characters that might cause database issues
+            image = result.secure_url ? result.secure_url.replace(/[`'"\\]/g, '') : null; // Cloudinary hosted image URL
+          } catch (cloudinaryError) {
+            console.error("Cloudinary upload error:", cloudinaryError);
+            // Use a placeholder image if Cloudinary upload fails
+            image = "https://res.cloudinary.com/drall4ntv/image/upload/v1/schoolImages/placeholder.jpg";
+          }
+        }
+
         await pool.execute(
           "INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [name, address, city, state || null, contact || null, image, email_id]
@@ -170,7 +183,8 @@ export default async function handler(req, res) {
 
         // Upload new one
         const result = await uploadToCloudinary(file);
-        image = result.secure_url;
+        // Remove any backticks or special characters that might cause database issues
+        image = result.secure_url ? result.secure_url.replace(/[`'"\\]/g, '') : null;
       }
 
       await pool.execute(

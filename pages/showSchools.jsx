@@ -18,6 +18,7 @@ export default function ShowSchools() {
       .then((res) => res.json())
       .then((data) => {
         const schoolsData = data.data || [];
+        console.log("Fetched schools:", schoolsData); // Debug log
         setSchools(schoolsData);
         setFilteredSchools(schoolsData);
         setIsLoading(false);
@@ -118,7 +119,7 @@ export default function ShowSchools() {
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-500">Loading schools...</p>
         </div>
-      ) : filteredSchools.length === 0 ? (
+      ) : filteredSchools.length === 0 && (
         <div className="text-center py-10">
           {searchTerm ? (
             <>
@@ -137,7 +138,9 @@ export default function ShowSchools() {
             </>
           )}
         </div>
-      ) : (
+      )}
+      
+      {!isLoading && filteredSchools.length > 0 && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           {filteredSchools.map((s) => (
             <div key={s.id} className="card hover:shadow-lg transition-shadow duration-300">
@@ -162,20 +165,20 @@ export default function ShowSchools() {
                   <div className="flex space-x-2">
                     <Link 
                       href={`/editSchool?id=${s.id}`}
-                      className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
+                      className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 p-1.5 rounded-full transition-all duration-200 transform hover:scale-105"
                       title="Edit School"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                       </svg>
                     </Link>
                     <button 
                       onClick={() => openDeleteModal(s.id, s.name)} 
                       disabled={isDeleting}
-                      className="text-red-500 hover:text-red-700 transition-colors duration-200"
+                      className="flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 p-1.5 rounded-full transition-all duration-200 transform hover:scale-105"
                       title="Delete School"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                       </svg>
                     </button>
