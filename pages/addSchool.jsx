@@ -18,8 +18,12 @@ export default function AddSchool() {
       // Append all fields
       Object.keys(data).forEach((key) => {
         if (key === "image") {
-          if (data.image[0]) formData.append("image", data.image[0]);
+          if (data.image[0]) {
+            console.log('Appending image file:', data.image[0].name);
+            formData.append("image", data.image[0]);
+          }
         } else {
+          console.log(`Appending field ${key}:`, data[key]);
           formData.append(key, data[key]);
         }
       });
@@ -31,38 +35,52 @@ export default function AddSchool() {
       const res = await fetch(`${baseUrl}/api/schools`, {
         method: "POST",
         body: formData,
+        headers: {
+          // Don't set Content-Type header when using FormData
+          // The browser will automatically set the correct Content-Type with boundary
+        },
       });
 
-      const result = await res.json();
-      console.log('API response:', result);
-      
-      if (res.ok) {
-        // If the API call was successful, update localStorage
-        if (typeof window !== 'undefined' && result.data) {
-          try {
-            // Get existing data from localStorage
-            const existingData = localStorage.getItem('schoolsData');
-            const schools = existingData ? JSON.parse(existingData) : [];
-            
-            // Add the new school to the array
-            schools.push(result.data);
-            
-            // Save back to localStorage
-            localStorage.setItem('schoolsData', JSON.stringify(schools));
-            console.log('School added to localStorage');
-          } catch (error) {
-            console.error('Error updating localStorage:', error);
-          }
-        }
-        
-        Router.push("/showSchools");
-      } else {
-        setErrorMessage(result.message || "Failed to add school. Please try again.");
-        console.error('Error adding school:', result);
+      // Check if response is valid before parsing JSON
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('API error response:', res.status, errorText);
+        throw new Error(`API error: ${res.status} - ${errorText || 'Unknown error'}`);
       }
+      
+      let result;
+      try {
+        result = await res.json();
+        console.log('API response:', result);
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        throw new Error('Invalid response from server. Please try again.');
+      }
+      
+      // If the API call was successful, update localStorage
+      if (typeof window !== 'undefined' && result.data) {
+        try {
+          // Get existing data from localStorage
+          const existingData = localStorage.getItem('schoolsData');
+          const schools = existingData ? JSON.parse(existingData) : [];
+          
+          // Add the new school to the array
+          schools.push(result.data);
+          
+          // Save back to localStorage
+          localStorage.setItem('schoolsData', JSON.stringify(schools));
+          console.log('School added to localStorage');
+        } catch (error) {
+          console.error('Error updating localStorage:', error);
+        }
+      }
+      
+      Router.push("/showSchools");
     } catch (error) {
       console.error('Form submission error:', error);
-      setErrorMessage("An unexpected error occurred. Please try again.");
+      // Extract the most useful error message to show to the user
+      const errorMsg = error.message || "An unexpected error occurred. Please try again.";
+      setErrorMessage(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

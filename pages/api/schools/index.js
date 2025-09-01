@@ -1,6 +1,7 @@
 import { getPool } from "../../../lib/db";
 import formidable from "formidable";
 import fs from "fs";
+import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import cloudinary from "../../../lib/cloudinary";
 
@@ -30,6 +31,16 @@ async function uploadToCloudinary(file) {
 }
 
 export default async function handler(req, res) {
+  // Set CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   const pool = await getPool();
 
   // ================= GET =================
@@ -59,36 +70,55 @@ export default async function handler(req, res) {
 
   // ================= POST =================
   if (req.method === "POST") {
-    const form = formidable({ multiples: false });
-    form.parse(req, async (err, fields, files) => {
-      if (err)
-        return res
-          .status(400)
-          .json({ success: false, message: "Error parsing form" });
+    try {
+      console.log('Received POST request to /api/schools');
+      
+      const form = formidable({ 
+        multiples: false,
+        keepExtensions: true,
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        encoding: 'utf-8',
+        // Use os.tmpdir() for a platform-independent temporary directory
+        uploadDir: require('os').tmpdir()
+      });
+      
+      // Convert form.parse to Promise to handle errors better
+      const [fields, files] = await new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) {
+            console.error('Form parsing error:', err);
+            reject(err);
+            return;
+          }
+          console.log('Form parsed successfully:', { fieldKeys: Object.keys(fields), fileKeys: Object.keys(files) });
+          resolve([fields, files]);
+        });
+      });
+
+
+      // Extract fields, handling both string values and arrays (from formidable)
+      const name = fields.name instanceof Array ? fields.name[0] : fields.name;
+      const address = fields.address instanceof Array ? fields.address[0] : fields.address;
+      const city = fields.city instanceof Array ? fields.city[0] : fields.city;
+      const state = fields.state instanceof Array ? fields.state[0] : fields.state;
+      const contact = fields.contact instanceof Array ? fields.contact[0] : fields.contact;
+      const email_id = fields.email_id instanceof Array ? fields.email_id[0] : fields.email_id;
+
+      let image = null;
+      if (files.image) {
+        const file = Array.isArray(files.image) ? files.image[0] : files.image;
+        try {
+          const result = await uploadToCloudinary(file);
+          // Remove any backticks or special characters that might cause database issues
+          image = result.secure_url ? result.secure_url.replace(/[`'"\\]/g, '') : null; // Cloudinary hosted image URL
+        } catch (cloudinaryError) {
+          console.error("Cloudinary upload error:", cloudinaryError);
+          // Use a placeholder image if Cloudinary upload fails
+          image = "https://res.cloudinary.com/drall4ntv/image/upload/v1/schoolImages/placeholder.jpg";
+        }
+      }
 
       try {
-        // Extract fields, handling both string values and arrays (from formidable)
-        const name = fields.name instanceof Array ? fields.name[0] : fields.name;
-        const address = fields.address instanceof Array ? fields.address[0] : fields.address;
-        const city = fields.city instanceof Array ? fields.city[0] : fields.city;
-        const state = fields.state instanceof Array ? fields.state[0] : fields.state;
-        const contact = fields.contact instanceof Array ? fields.contact[0] : fields.contact;
-        const email_id = fields.email_id instanceof Array ? fields.email_id[0] : fields.email_id;
-
-        let image = null;
-        if (files.image) {
-          const file = Array.isArray(files.image) ? files.image[0] : files.image;
-          try {
-            const result = await uploadToCloudinary(file);
-            // Remove any backticks or special characters that might cause database issues
-            image = result.secure_url ? result.secure_url.replace(/[`'"\\]/g, '') : null; // Cloudinary hosted image URL
-          } catch (cloudinaryError) {
-            console.error("Cloudinary upload error:", cloudinaryError);
-            // Use a placeholder image if Cloudinary upload fails
-            image = "https://res.cloudinary.com/drall4ntv/image/upload/v1/schoolImages/placeholder.jpg";
-          }
-        }
-
         const result = await pool.execute(
           "INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [name, address, city, state || null, contact || null, image, email_id]
@@ -107,11 +137,14 @@ export default async function handler(req, res) {
         };
         
         res.status(200).json({ success: true, message: "School added!", data: newSchool });
-      } catch (e) {
-        console.error(e);
-        res.status(500).json({ success: false, message: "Database error" });
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+        res.status(500).json({ success: false, message: "Database error: " + dbError.message });
       }
-    });
+    } catch (formError) {
+      console.error('Form parsing error:', formError);
+      res.status(400).json({ success: false, message: "Error parsing form: " + formError.message });
+    }
   }
 
   // ================= DELETE =================
@@ -160,12 +193,29 @@ export default async function handler(req, res) {
 
   // ================= PUT =================
   else if (req.method === "PUT") {
-    const form = formidable({ multiples: false });
-    form.parse(req, async (err, fields, files) => {
-      if (err)
-        return res
-          .status(400)
-          .json({ success: false, message: "Error parsing form" });
+    try {
+      console.log('Received PUT request to /api/schools');
+      
+      const form = formidable({ 
+        multiples: false,
+        keepExtensions: true,
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        encoding: 'utf-8',
+        uploadDir: os.tmpdir()
+      });
+      
+      // Convert form.parse to Promise to handle errors better
+      const [fields, files] = await new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) {
+            console.error('Form parsing error:', err);
+            reject(err);
+            return;
+          }
+          console.log('Form parsed successfully:', { fieldKeys: Object.keys(fields), fileKeys: Object.keys(files) });
+          resolve([fields, files]);
+        });
+      });
 
       const id = Array.isArray(fields.id) ? fields.id[0] : fields.id;
       const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
@@ -233,7 +283,10 @@ export default async function handler(req, res) {
       res
         .status(200)
         .json({ success: true, message: "School updated successfully", data: updatedSchool });
-    });
+    } catch (error) {
+      console.error('Error updating school:', error);
+      res.status(500).json({ success: false, message: "Error updating school: " + error.message });
+    }
   }
 
   // ================= OTHER =================
